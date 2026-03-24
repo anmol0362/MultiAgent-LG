@@ -6,8 +6,11 @@ from langchain_openai import AzureChatOpenAI
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_experimental.tools import PythonREPLTool
 
+from dotenv import load_dotenv
 load_dotenv()
 chat_history = []
+import os
+print("LangSmith Key:", os.getenv("LANGCHAIN_API_KEY"))
 
 # ------------------------
 # LLM
@@ -168,50 +171,99 @@ def executor(state):
     query = state["input"]
     plan = state["plan"]
 
-    print("\n🤖 [EXECUTOR AGENT]")
+    print("\n🤖 [EXECUTOR - PRO MODE]")
+    print("📌 Executing step-by-step...\n")
 
-    history_text = "\n".join(chat_history)
+    steps = []
+    for s in plan.split("\n"):
+        s = s.strip()
+        if s.lower().startswith("step"):
+            steps.append(s)
 
-    # decide tool
-    decision = llm.invoke(f"""
-Conversation:
-{history_text}
+    steps = steps[:5]
 
-Task: {query}
+    if not steps:
+        steps = [query]
 
-Should I use search? YES or NO
+    results = []
+
+    for step in steps:
+        if not step.strip():
+            continue
+
+        # ✅ filter garbage steps
+        if any(x in step.lower() for x in ["substep", "---", "here’s", "would you"]):
+            continue
+
+        print(f"\n➡️ Step: {step}")
+
+        # ✅ SINGLE tool decision (FIXED)
+        if "find" in step.lower() or "research" in step.lower():
+            tool_decision = "SEARCH"
+        else:
+            tool_decision = llm.invoke(f"""
+Step: {step}
+
+Does this step require:
+- SEARCH
+- CODE
+- NONE
+
+Answer only one word.
+""").content.strip().upper()
+
+        print("🛠️ Tool Decision:", tool_decision)
+
+        # 🔍 SEARCH
+        if "SEARCH" in tool_decision:
+            print("🌐 Using SEARCH TOOL...")
+            tool_output = search_tool.invoke(step)
+
+        # 💻 CODE
+        elif "CODE" in tool_decision:
+            print("💻 Generating + Running Code...")
+            code = llm.invoke(f"""
+Return ONLY valid Python code.
+No explanation.
+No markdown.
+
+Task: {step}
 """).content
 
-    print("🤔 Tool Decision:", decision)
+            try:
+                tool_output = python_tool.invoke(code)
+            except Exception as e:
+                tool_output = str(e)
 
-    if "YES" in decision.upper():
-        print("🌐 Using SEARCH TOOL...\n")
-        tool_data = search_tool.invoke(query)
-    else:
-        tool_data = "No external data used."
+        # 🧠 NORMAL
+        else:
+            tool_output = llm.invoke(f"Solve this step: {step}").content
 
-    result = llm.invoke(f"""
-Conversation:
-{history_text}
+        print("✅ Step Result:", str(tool_output)[:200], "...")
 
+        results.append(f"{step} → {tool_output}")
+
+    # ✅ prevent empty results
+    if not results:
+        results.append("No valid steps executed.")
+
+    final = llm.invoke(f"""
 Task: {query}
 
-Plan:
-{plan}
+Step Results:
+{results}
 
-Data:
-{tool_data}
-
-Give final answer.
+Use ONLY these results.
+Do NOT say you cannot answer.
+Give final structured answer.
 """)
 
-    print("✅ Done\n")
+    print("\n🎯 FINAL DONE\n")
 
     return {
-        "result": result.content,
+        "result": final.content,
         "input": query
     }
-
 # ------------------------
 # GRAPH
 # ------------------------
