@@ -1,10 +1,9 @@
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import TypedDict, List, Annotated
 
-class AgentState(TypedDict, total=False):
+class AgentState(TypedDict):
     input: str
-    plan: List[str]
-    current_step: Optional[str]
-    step_results: List[Dict[str, Any]]
+    plan: str
+    step_results: List[str]
     result: str
-    route: str
-    errors: List[str]
+    quality_score: int  # Add this
+    feedback: str       # Add this

@@ -1,3 +1,3 @@
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_tavily import TavilySearch
 
-search_tool = TavilySearchResults()
+search_tool = TavilySearch()

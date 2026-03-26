@@ -1,28 +1,43 @@
 from config import llm
 from prompts import PLANNER_PROMPT
-from utils.logger import log_event
-from utils.helpers import chat_history
 from observability import observe
 
 @observe(name="planner-agent", as_type="agent")
 def planner(state):
     query = state["input"]
+    feedback = state.get("feedback", "No previous feedback.")
+    previous_steps = state.get("step_results", [])
 
-    log_event("[PLANNER AGENT]", f"Task: {query}")
+    # If this is the second attempt, we tell the LLM exactly what went wrong
+    if feedback != "No previous feedback.":
+        system_instructions = f"""
+        You are an expert Aviation Project Planner.
+        
+        CRITICAL FEEDBACK FROM PREVIOUS ATTEMPT:
+        {feedback}
+        
+        PREVIOUS ATTEMPT STEPS:
+        {previous_steps}
+        
+        The previous plan failed to meet safety standards. 
+        Create a NEW, more detailed plan that addresses the feedback specifically.
+        Focus on retrieving technical data (RAG) or performing deeper analysis.
+        """
+    else:
+        system_instructions = "You are an expert Aviation Project Planner. Break the user query into logical steps."
 
-    history_text = "\n".join(chat_history)
+    prompt = f"""
+    {system_instructions}
+    
+    USER TASK: {query}
+    
+    Format the plan as a numbered list of steps. 
+    Example:
+    1. Retrieve ASRS data on winglet alterations.
+    2. Analyze FAA regulatory compliance for avionics.
+    """
 
-    raw_plan = llm.invoke(
-    f"{PLANNER_PROMPT}\n\nConversation so far:\n{history_text}\n\nNew user query:\n{query}"
-).content
+    response = llm.invoke(prompt).content
+    print(f"\n🗺️ New Plan Generated:\n{response}")
 
-# keep only first 4 non-empty lines
-    plan_lines = [line.strip() for line in raw_plan.split("\n") if line.strip()]
-    plan = "\n".join(plan_lines[:4])
-
-    log_event("Plan", plan)
-
-    return {
-        "plan": plan,
-        "input": query
-    }
+    return {"plan": response}
