@@ -27,3 +27,7 @@ gunicorn
 langchain
 langgraph
 # ...rest of your deps
+
+fastapi
+uvicorn
+gunicorn
