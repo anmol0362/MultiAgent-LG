@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import os
-from graph.workflow import build_graph
 
 app = FastAPI(title="Multi-Agent RAG API")
 
@@ -21,8 +20,8 @@ def health():
 def get_graph():
     global graph
     if graph is None:
-        # Import only when needed (VERY IMPORTANT)
-        from workflow import build_graph
+        # ✅ correct import
+        from graph.workflow import build_graph
         graph = build_graph()
     return graph
 
