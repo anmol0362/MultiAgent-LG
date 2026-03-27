@@ -18,3 +18,12 @@ numpy
 pydantic
 python-dotenv
 langfuse
+
+**Step 2 — Update `requirements.txt`** — make sure these are present:
+```
+fastapi
+uvicorn[standard]
+gunicorn
+langchain
+langgraph
+# ...rest of your deps
