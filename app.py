@@ -1,20 +1,15 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from graph.workflow import build_graph
+graph = None
 
-app = FastAPI(title="Multi-Agent RAG API")
-graph = build_graph()
-
-class QueryRequest(BaseModel):
-    query: str
-
-@app.get("/")
-def home():
-    return {"message": "Multi-Agent RAG API is running 🚀"}
+def get_graph():
+    global graph
+    if graph is None:
+        graph = build_graph()
+    return graph
 
 @app.post("/ask")
 def ask(req: QueryRequest):
-    output = graph.invoke({"input": req.query})
+    g = get_graph()
+    output = g.invoke({"input": req.query})
     return {
         "query": req.query,
         "result": output["result"],
