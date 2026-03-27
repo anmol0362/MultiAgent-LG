@@ -1,17 +1,11 @@
-graph = None
+from fastapi import FastAPI
 
-def get_graph():
-    global graph
-    if graph is None:
-        graph = build_graph()
-    return graph
+app = FastAPI(title="Azure Test API")
 
-@app.post("/ask")
-def ask(req: QueryRequest):
-    g = get_graph()
-    output = g.invoke({"input": req.query})
-    return {
-        "query": req.query,
-        "result": output["result"],
-        "step_results": output.get("step_results", [])
-    }
+@app.get("/")
+def home():
+    return {"message": "Azure deployment works 🚀"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
